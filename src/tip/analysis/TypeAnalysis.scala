@@ -106,13 +106,33 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
       case _: AInput => unify(node, IntType())
       case is: AIfStmt => unify(is.guard, IntType())
       case os: AOutputStmt => unify(os.exp, IntType())
-      case ws: AWhileStmt => unify(ws.guard, IntType()) 
+      case ws: AWhileStmt => unify(ws.guard, IntType())
       case as: AAssignStmt =>
         as.left match {
-          case id: AIdentifier => unify(id, as.right) // <--- Complete here
-          case dw: ADerefWrite => ??? // <--- Complete here
-          case dfw: ADirectFieldWrite => ??? // <--- Complete here // direct access
-          case ifw: AIndirectFieldWrite => ??? // <--- Complete here // pointer derefence
+          case id: AIdentifier =>
+            as.right match {
+              case rec: ARecord =>
+                val fieldmap = rec.fields.foldLeft(Map[String, Term[Type]]()) { (a, b) =>
+                  a + (b.field -> b.exp)
+                }
+                unify(id,
+                  RecordType(
+                  allFieldNames.map { f =>
+                    fieldmap.getOrElse(f, FreshVarType())
+                }))
+
+                //unify(id, as.right) //TODO: this breaks the program and should not be used
+
+              case _ => unify(id, as.right)
+            }
+          case dw: ADerefWrite => unify(as, PointerType(dw.exp))
+          case dfw: ADirectFieldWrite =>
+            //val singlemap = Map[String, Term[Type]](dfw.id -> )
+            unify( AFieldAccess(dfw.id , dfw.field , dfw.loc),//dfw.id, // record identifier
+              as.right
+          )
+          case ifw: AIndirectFieldWrite =>  // pointer derefence
+            unify( AFieldAccess(ifw.exp , ifw.field , ifw.loc), PointerType(as.right))
         }
       case bin: ABinaryOp =>
         bin.operator match {
@@ -128,11 +148,27 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
         }
       case un: AUnaryOp =>
         un.operator match {
-          case DerefOp => ??? // <--- Complete here
+          case DerefOp => unify(un.subexp, PointerType(un))
         }
-      case alloc: AAlloc => ??? // <--- Complete here
-      case ref: AVarRef => unify(ref, PointerType(ref.id))
-      case _: ANull => ??? // <--- Complete here
+      case alloc: AAlloc =>
+        alloc.exp match{
+          case rec: ARecord =>
+            val fieldmap = rec.fields.foldLeft(Map[String, Term[Type]]()) { (a, b) =>
+              a + (b.field -> b.exp)
+            }
+            unify(alloc,
+              PointerType(RecordType(
+                allFieldNames.map { f =>
+                  fieldmap.getOrElse(f, FreshVarType())
+                }))) // MA: this is very ugly but necessary, since otherwise we may only include
+                    // a subset of all fields
+
+          case _ => unify(alloc, PointerType(alloc.exp))
+        }
+
+      case ref: AVarRef =>
+        unify(ref, PointerType(ref.id))
+      case _: ANull => unify(node, PointerType(FreshVarType()))
       case fun: AFunDeclaration => {
         if (fun.name == "main")
           unify(fun, FunctionType(fun.params, IntType()))
@@ -143,7 +179,7 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
       case _: AReturnStmt =>
       case rec: ARecord =>
         val fieldmap = rec.fields.foldLeft(Map[String, Term[Type]]()) { (a, b) =>
-          a + (b.field -> b.exp)
+          a + (b.field -> b.exp) // "a" is a Map and "(b.field -> b.exp)" is a new record being added to that Map
         }
         unify(rec, RecordType(allFieldNames.map { f =>
           fieldmap.getOrElse(f, AbsentFieldType)
