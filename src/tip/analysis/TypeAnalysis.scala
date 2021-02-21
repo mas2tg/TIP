@@ -101,7 +101,7 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
   def visit(node: AstNode, arg: Unit): Unit = {
     log.verb(s"Visiting ${node.getClass.getSimpleName} at ${node.loc}")
     node match {
-      case program: AProgram => //program.funs // Already visisted by DepthFirstAstVisitor
+      case program: AProgram => 
       case _: ANumber => unify(node, IntType())
       case _: AInput => unify(node, IntType())
       case is: AIfStmt => unify(is.guard, IntType())
@@ -120,17 +120,15 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
                   allFieldNames.map { f =>
                     fieldmap.getOrElse(f, FreshVarType())
                 }))
-
-                //unify(id, as.right) //TODO: this breaks the program and should not be used
+                //unify(id, as.right) //MA: this breaks the program and should not be used
 
               case _ => unify(id, as.right)
             }
           case dw: ADerefWrite =>
-           unify(as, PointerType(dw.exp)) //TODO: problem here?
+           unify(as, PointerType(dw.exp))
 
           case dfw: ADirectFieldWrite =>
-            //val singlemap = Map[String, Term[Type]](dfw.id -> )
-            unify( AFieldAccess(dfw.id , dfw.field , dfw.loc),//dfw.id, // record identifier
+            unify( AFieldAccess(dfw.id , dfw.field , dfw.loc),
               as.right
           )
           case ifw: AIndirectFieldWrite =>  // pointer derefence
@@ -172,8 +170,10 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
         unify(ref, PointerType(ref.id))
       case _: ANull => unify(node, PointerType(FreshVarType()))
       case fun: AFunDeclaration => {
-        if (fun.name == "main")
+        if (fun.name == "main") {
           unify(fun, FunctionType(fun.params, IntType()))
+          unify(fun.stmts.ret.exp, IntType())
+        }
         else
           unify(fun, FunctionType(fun.params, fun.stmts.ret.exp))
       }
