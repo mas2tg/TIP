@@ -125,7 +125,9 @@ class TypeAnalysis(program: AProgram)(implicit declData: DeclarationData) extend
 
               case _ => unify(id, as.right)
             }
-          case dw: ADerefWrite => unify(as, PointerType(dw.exp))
+          case dw: ADerefWrite =>
+           unify(as, PointerType(dw.exp)) //TODO: problem here?
+
           case dfw: ADirectFieldWrite =>
             //val singlemap = Map[String, Term[Type]](dfw.id -> )
             unify( AFieldAccess(dfw.id , dfw.field , dfw.loc),//dfw.id, // record identifier
