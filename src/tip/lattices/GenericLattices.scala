@@ -1,5 +1,7 @@
 package tip.lattices
 
+import tip.ast.ADeclaration
+
 import scala.language.implicitConversions
 
 /**
@@ -150,9 +152,10 @@ class PowersetLattice[A](ch: A => Boolean) extends Lattice {
 
   type Element = Set[A]
 
-  val bottom: Element = ??? //<--- Complete here
+  val bottom: Element = Set() // Set.empty[A] // Set()// empty set //<--- Complete here
 
-  def lub(x: Element, y: Element): Element = ??? //<--- Complete here
+  def lub(x: Element, y: Element): Element =
+    x union y //<--- Complete here
 }
 
 /**
